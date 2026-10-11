@@ -1,0 +1,51 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Staff Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="dashboard">
+    <h1>Staff Dashboard</h1>
+    <p>Staff workspace</p>
+
+    <section class="dashboard-card">
+      <h2>Welcome, <span id="staffName">Staff</span></h2>
+      <p id="staffInfo"></p>
+      <p>You are signed in with the staff role.</p>
+
+      <nav class="nav-links">
+        <a href="/profile.html">Edit Profile</a>
+        <a href="#" id="logout">Logout</a>
+      </nav>
+    </section>
+  </main>
+
+  <script>
+    const storedUser = sessionStorage.getItem('currentUser');
+
+    if (!storedUser) {
+      window.location.replace('/login.html');
+    } else {
+      const user = JSON.parse(storedUser);
+
+      if (user.role !== 'staff') {
+        window.location.replace('/login.html');
+      } else {
+        document.getElementById('staffName').textContent = user.name;
+        document.getElementById('staffInfo').textContent =
+          `Email: ${user.email} | Role: ${user.role}`;
+      }
+    }
+
+    document.getElementById('logout').addEventListener('click', event => {
+      event.preventDefault();
+      sessionStorage.removeItem('currentUser');
+      window.location.replace('/login.html');
+    });
+  </script>
+</body>
+</html>

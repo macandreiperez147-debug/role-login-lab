@@ -1,0 +1,84 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | Role-Based System</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="auth-container">
+    <section class="auth-card">
+      <h1>Welcome Back</h1>
+      <p class="subtitle">Sign in to your account</p>
+
+      <form id="loginForm">
+        <label for="email">Email Address</label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          placeholder="Enter your email"
+          required
+        >
+
+        <label for="password">Password</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          placeholder="Enter your password"
+          required
+        >
+
+        <button type="submit">Login</button>
+        <p id="message" class="message" role="status"></p>
+      </form>
+
+      <p class="auth-link">
+        Don't have an account?
+        <a href="/register.html">Create an account</a>
+      </p>
+    </section>
+  </main>
+
+  <script>
+    const loginForm = document.getElementById('loginForm');
+    const message = document.getElementById('message');
+
+    loginForm.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      message.textContent = 'Signing in...';
+      message.className = 'message';
+
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      try {
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          message.textContent = data.message || 'Login failed.';
+          message.classList.add('error');
+          return;
+        }
+
+        sessionStorage.setItem('currentUser', JSON.stringify(data.user));
+        window.location.href = data.redirectTo;
+      } catch (error) {
+        message.textContent = 'Cannot connect to the server. Please try again.';
+        message.classList.add('error');
+      }
+    });
+  </script>
+</body>
+</html>

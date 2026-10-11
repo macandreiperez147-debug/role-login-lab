@@ -1,0 +1,269 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="dashboard">
+    <h1>Admin Dashboard</h1>
+    <p id="welcome">Manage system users.</p>
+
+    <section class="dashboard-card">
+      <h2>Create User</h2>
+
+      <form id="createForm">
+        <label for="newName">Full Name</label>
+        <input id="newName" required>
+
+        <label for="newEmail">Email</label>
+        <input id="newEmail" type="email" required>
+
+        <label for="newPassword">Password (minimum 6 characters)</label>
+        <input id="newPassword" type="password" minlength="6" required>
+
+        <label for="newRole">Role</label>
+        <select id="newRole">
+          <option value="user">User</option>
+          <option value="staff">Staff</option>
+          <option value="admin">Admin</option>
+        </select>
+
+        <button type="submit">Create User</button>
+        <p id="createMessage" class="message" role="status"></p>
+      </form>
+    </section>
+
+    <section class="dashboard-card">
+      <h2>Manage Users</h2>
+      <p id="listMessage" class="message" role="status"></p>
+
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="usersTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <nav class="nav-links">
+      <a href="/profile.html">My Profile</a>
+      <a href="#" id="logout">Logout</a>
+    </nav>
+  </main>
+
+  <script>
+    const storedUser = sessionStorage.getItem('currentUser');
+
+    if (!storedUser) {
+      window.location.replace('/login.html');
+    } else {
+      const admin = JSON.parse(storedUser);
+
+      if (admin.role !== 'admin') {
+        window.location.replace('/login.html');
+      } else {
+        document.getElementById('welcome').textContent =
+          `Welcome, ${admin.name}. Manage system users below.`;
+
+        loadUsers();
+
+        document.getElementById('createForm').addEventListener(
+          'submit',
+          createUser
+        );
+
+        document.getElementById('logout').addEventListener(
+          'click',
+          event => {
+            event.preventDefault();
+            sessionStorage.removeItem('currentUser');
+            window.location.replace('/login.html');
+          }
+        );
+      }
+    }
+
+    async function loadUsers() {
+      const table = document.getElementById('usersTable');
+      const message = document.getElementById('listMessage');
+      table.replaceChildren();
+      message.textContent = 'Loading users...';
+
+      try {
+        const response = await fetch('/api/users');
+        const users = await response.json();
+
+        if (!response.ok) {
+          throw new Error('Could not load users.');
+        }
+
+        message.textContent = `${users.length} user(s) found.`;
+
+        users.forEach(user => {
+          const row = document.createElement('tr');
+
+          [user.id, user.name, user.email, user.role].forEach(value => {
+            const cell = document.createElement('td');
+            cell.textContent = value;
+            row.appendChild(cell);
+          });
+
+          const actions = document.createElement('td');
+
+          const editButton = document.createElement('button');
+          editButton.textContent = 'Edit';
+          editButton.type = 'button';
+          editButton.addEventListener('click', () => editUser(user));
+
+          const deleteButton = document.createElement('button');
+          deleteButton.textContent = 'Delete';
+          deleteButton.type = 'button';
+          deleteButton.style.marginLeft = '6px';
+          deleteButton.style.background = '#b91c1c';
+          deleteButton.addEventListener(
+            'click',
+            () => deleteUser(user)
+          );
+
+          actions.append(editButton, deleteButton);
+          row.appendChild(actions);
+          table.appendChild(row);
+        });
+      } catch (error) {
+        message.textContent = error.message;
+      }
+    }
+
+    async function createUser(event) {
+      event.preventDefault();
+
+      const message = document.getElementById('createMessage');
+      message.className = 'message';
+      message.textContent = 'Creating user...';
+
+      const payload = {
+        name: document.getElementById('newName').value.trim(),
+        email: document.getElementById('newEmail').value.trim(),
+        password: document.getElementById('newPassword').value,
+        role: document.getElementById('newRole').value
+      };
+
+      try {
+        const response = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          message.textContent = data.message || 'Could not create user.';
+          message.classList.add('error');
+          return;
+        }
+
+        message.textContent = 'User created successfully.';
+        message.classList.add('success');
+        document.getElementById('createForm').reset();
+        await loadUsers();
+      } catch {
+        message.textContent = 'Cannot connect to the server.';
+        message.classList.add('error');
+      }
+    }
+
+    async function editUser(user) {
+      const name = prompt('Enter the new name:', user.name);
+      if (name === null) return;
+
+      const email = prompt('Enter the new email:', user.email);
+      if (email === null) return;
+
+      const role = prompt(
+        'Enter the role: admin, staff, or user',
+        user.role
+      );
+
+      if (role === null) return;
+
+      try {
+        const response = await fetch(`/api/users/${user.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, role })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          alert(data.message || 'Could not update user.');
+          return;
+        }
+
+        alert('User updated successfully.');
+
+        const current = JSON.parse(
+          sessionStorage.getItem('currentUser') || 'null'
+        );
+
+        if (current && current.id === user.id) {
+          sessionStorage.setItem(
+            'currentUser',
+            JSON.stringify(data.user)
+          );
+        }
+
+        await loadUsers();
+      } catch {
+        alert('Cannot connect to the server.');
+      }
+    }
+
+    async function deleteUser(user) {
+      const current = JSON.parse(
+        sessionStorage.getItem('currentUser') || 'null'
+      );
+
+      if (current && current.id === user.id) {
+        alert('You cannot delete your own admin account.');
+        return;
+      }
+
+      if (!confirm(`Delete ${user.name} (${user.email})?`)) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/users/${user.id}`, {
+          method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          alert(data.message || 'Could not delete user.');
+          return;
+        }
+
+        alert('User deleted successfully.');
+        await loadUsers();
+      } catch {
+        alert('Cannot connect to the server.');
+      }
+    }
+  </script>
+</body>
+</html>
